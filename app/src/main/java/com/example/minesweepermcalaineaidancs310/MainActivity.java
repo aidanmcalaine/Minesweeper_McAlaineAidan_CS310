@@ -10,7 +10,10 @@ import android.view.View;
 import android.widget.TextView;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.Random;
+import java.util.Queue;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -51,8 +54,9 @@ public class MainActivity extends AppCompatActivity {
 
                 //Configure
                 tv.setTextColor(Color.GRAY);
-//                tv.setText("");
-                tv.setBackgroundColor(Color.GRAY);
+                tv.setText("");
+
+                tv.setBackgroundColor(Color.parseColor("lime"));
                 tv.setOnClickListener(this::onClickTV);
                 GridLayout.LayoutParams lp = (GridLayout.LayoutParams) tv.getLayoutParams();
                 lp.rowSpec = GridLayout.spec(i);
@@ -161,27 +165,10 @@ public class MainActivity extends AppCompatActivity {
                 if (bombCount > 0) {
                     bombPlacements[i][j] = Integer.toString(bombCount);
                 } else {
-                    bombPlacements[i][j] = " ";
+                    bombPlacements[i][j] = "";
                 }
             }
         }
-
-        //Debug
-        for (int i = 0; i < ROW_COUNT; i++) {
-            for (int j = 0; j < COLUMN_COUNT; j++) {
-                if (bombPlacements[i][j].equals("b")) {
-                    System.out.println(i + " " + j);
-                }
-            }
-        }
-        System.out.println("-");
-        for (int i = 0; i < ROW_COUNT; i++) {
-            for (int j = 0; j < COLUMN_COUNT; j++) {
-                System.out.println(i + " " + j);
-                System.out.println(bombPlacements[i][j]);
-            }
-        }
-
     }
 
     //Private helper function: find index of cell text view
@@ -200,14 +187,139 @@ public class MainActivity extends AppCompatActivity {
         int i = n/COLUMN_COUNT;
         int j = n%COLUMN_COUNT;
 
-        String cellText = i + "" + j;
-        tv.setText(cellText);
-        if (tv.getCurrentTextColor() == Color.GRAY) {
-            tv.setTextColor(Color.GREEN);
-            tv.setBackgroundColor(Color.parseColor("lime"));
-        }else {
-            tv.setTextColor(Color.GRAY);
-            tv.setBackgroundColor(Color.LTGRAY);
+        tv.setText(bombPlacements[i][j]);
+
+        //perform BFS if the square is empty (opens up other empty squares)
+        if (tv.getText().equals("")) {
+
+            //perform BFS (add to back, remove from front of LL)
+            LinkedList<String> queue = new LinkedList<>();
+            HashMap<String, Boolean> visited = new HashMap<>();
+
+            //keys will be indices added together, turned into a string
+            //i.e. i = 2, j = 3 -> str(23)
+
+            String index = Integer.toString(i) + Integer.toString(j);
+            queue.add(index);
+            visited.put(index, true);
+
+
+            while (!queue.isEmpty()) {
+
+                //remove that vertex from the queue (from the front of LL)
+                String currIndex = queue.pop();
+
+                //handle the neighbors of currIndex
+                ArrayList<String> neighbors = getNeighbors(currIndex);
+
+                if (neighbors != null) {
+                    for (int k = 0; k < neighbors.size(); k++) {
+                        //if not already visited
+
+                        //get the key from neighbors
+                        if (!visited.containsKey(neighbors.get(k))) {
+
+                            //first ensure that the cell is empty
+                            char iIdx = neighbors.get(k).charAt(0);
+                            char jIdx = neighbors.get(k).charAt(1);
+
+                            int iIndex = Integer.valueOf(iIdx) - '0';
+                            int jIndex = Integer.valueOf(jIdx) - '0';
+
+                            //add it to the queue and mark it as visited
+                            if (bombPlacements[iIndex][jIndex].equals("")) {
+                                queue.add(neighbors.get(k));
+                                visited.put(neighbors.get(k), true);
+                            } else{
+                                //if we encounter a number, we should add it but not visit it
+                                if (!bombPlacements[iIndex][jIndex].equals("b")) {
+                                    visited.put(neighbors.get(k), true);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                //DEBUG HERE
+                //WORK THROUGH SOME TEST CASES, MAKE SURE THE NEIGHBORS BEING RETURNED ARE
+                //ACTUALLY CORRECT. ONCE THEY ARE, WE CAN MOVE ON TO TRYING TO COLOR THEM GREY
+            }
+            for (int x = 0; x < ROW_COUNT; x++) {
+                for (int y = 0; y < COLUMN_COUNT; y++) {
+                    //if i + j in keys
+                    String strIdx = String.valueOf(x) + String.valueOf(y);
+                    if (visited.containsKey(strIdx)) {
+                        //set cell background color to grey
+                        int cellIndex = (x * COLUMN_COUNT) + ((y % COLUMN_COUNT));
+                        cells.get(cellIndex).setBackgroundColor(Color.LTGRAY);
+                        cells.get(cellIndex).setTextColor(Color.GRAY);
+                        cells.get(cellIndex).setText(bombPlacements[x][y]);
+                    }
+                }
+            }
         }
+
     }
+
+    public ArrayList<String> getNeighbors(String cell) {
+        //separate cell into i and j components and return all neighbors (if valid)
+
+        ArrayList<String> neighbors = new ArrayList<>();
+
+        char i = cell.charAt(0);
+        char j = cell.charAt(1);
+
+        int iIndex = Integer.valueOf(i) - '0';
+        int jIndex = Integer.valueOf(j) - '0';
+
+        //get neighbors
+
+        //up (i,j-1)
+        if (jIndex-1 >= 0) {
+            String toAdd = String.valueOf(iIndex) + String.valueOf(jIndex-1);
+            neighbors.add(toAdd);
+        }
+        //left (i-1,j)
+        if (iIndex-1 >= 0) {
+            String toAdd = String.valueOf(iIndex-1) + String.valueOf(jIndex);
+            neighbors.add(toAdd);
+        }
+        //right (i+1,j)
+        if (iIndex+1 < ROW_COUNT) {
+            String toAdd = String.valueOf(iIndex+1) + String.valueOf(jIndex);
+            neighbors.add(toAdd);
+        }
+        //down (i,j+1)
+        if (jIndex+1 < COLUMN_COUNT) {
+            String toAdd = String.valueOf(iIndex) + String.valueOf(jIndex+1);
+            neighbors.add(toAdd);
+        }
+
+        //Diagonal cases as well
+        //up left (i-1, j-1)
+        if (iIndex-1 >= 0 && jIndex-1 >= 0) {
+            String toAdd = String.valueOf(iIndex-1) + String.valueOf(jIndex-1);
+            neighbors.add(toAdd);
+        }
+        //up right (i+1, j-1)
+        if (iIndex+1 < ROW_COUNT && jIndex-1 >= 0) {
+            String toAdd = String.valueOf(iIndex+1) + String.valueOf(jIndex-1);
+            neighbors.add(toAdd);
+        }
+        //down left (i-1, j+1)
+        if (iIndex-1 >= 0 && jIndex+1 < COLUMN_COUNT) {
+            String toAdd = String.valueOf(iIndex-1) + String.valueOf(jIndex+1);
+            neighbors.add(toAdd);
+        }
+        //down right (i+1, j+1)
+        if (iIndex+1 < ROW_COUNT && jIndex+1 < COLUMN_COUNT) {
+            String toAdd = String.valueOf(iIndex+1) + String.valueOf(jIndex+1);
+            neighbors.add(toAdd);
+        }
+
+        if (neighbors.isEmpty()) {
+            return null;
+        } else return neighbors;
+    }
+
 }
