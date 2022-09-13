@@ -21,6 +21,11 @@ public class MainActivity extends AppCompatActivity {
     private static final int COLUMN_COUNT = 8;
     private static final int ROW_COUNT = 10;
 
+    //Additional member variables
+    boolean mining = true;
+    boolean flagging = false;
+    TextView gameMode;
+
     //Declare arraylist of cells + boolean 2d array to keep track of bombs
     private ArrayList<TextView> cells;
     String[][] bombPlacements;
@@ -43,6 +48,11 @@ public class MainActivity extends AppCompatActivity {
             }
         }
 
+        //Initialize a textview at the bottom of the screen to represent the mode (mining/flagging)
+        gameMode = (TextView) findViewById(R.id.textViewBottom);
+        gameMode.setOnClickListener(this::onGamemodeChange);
+        gameMode.setText(R.string.pick);
+
         //Add dynamically created cells with LayoutInflater
         GridLayout grid = (GridLayout) findViewById(R.id.gridLayout01);
         LayoutInflater li = LayoutInflater.from(this);
@@ -64,7 +74,6 @@ public class MainActivity extends AppCompatActivity {
 
                 //Add to grid and array list of cells
                 grid.addView(tv, lp);
-
                 cells.add(tv);
             }
         }
@@ -160,7 +169,6 @@ public class MainActivity extends AppCompatActivity {
                         bombCount += 1;
                     }
                 }
-
                 //Assign bombCount value to appropriate location
                 if (bombCount > 0) {
                     bombPlacements[i][j] = Integer.toString(bombCount);
@@ -180,6 +188,24 @@ public class MainActivity extends AppCompatActivity {
         //return -1 if unable to find
         return -1;
     }
+
+    public void onGamemodeChange(View view) {
+
+        //toggle modes
+        if (mining) {
+            //mining -> switch to flagging
+            gameMode.setText(R.string.flag);
+            mining = false;
+            flagging = true;
+
+        } else {
+            //flagging -> switch to mining
+            gameMode.setText(R.string.pick);
+            mining = true;
+            flagging = false;
+        }
+    }
+
     public void onClickTV(View view){
 
         TextView tv = (TextView) view;
@@ -257,6 +283,15 @@ public class MainActivity extends AppCompatActivity {
                     }
                 }
             }
+        } else {
+            //on click will either be a bomb or a number or a bomb
+            tv.setBackgroundColor(Color.LTGRAY);
+            tv.setTextColor(Color.GRAY);
+        }
+
+        //Added functionality
+        if (flagging) {
+            tv.setText(R.string.flag);
         }
 
     }
