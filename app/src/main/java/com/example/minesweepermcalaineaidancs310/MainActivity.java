@@ -3,8 +3,10 @@ package com.example.minesweepermcalaineaidancs310;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.gridlayout.widget.GridLayout;
 
+import android.content.Intent;
 import android.graphics.Color;
 import android.os.Bundle;
+import android.os.Handler;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.TextView;
@@ -25,6 +27,11 @@ public class MainActivity extends AppCompatActivity {
     //Additional member variables
     boolean mining = true;
     boolean flagging = false;
+    int clock = 0;
+    int secondsRecorded = 0;
+    boolean clockRunning = false;
+    boolean victory = false;
+    boolean lostGame = false;
 
     TextView gameMode;
     TextView topFlagView;
@@ -77,6 +84,11 @@ public class MainActivity extends AppCompatActivity {
         flagCount = (TextView) findViewById(R.id.topFlagCount);
         flagCount.setText(String.valueOf(BOMB_COUNT));
 
+        topWatchView = (TextView) findViewById(R.id.stopwatchView);
+        topWatchView.setText(R.string.clock);
+
+        watchCount = (TextView) findViewById(R.id.stopwatchCount);
+        watchCount.setText("0");
 
         //Add dynamically created cells with LayoutInflater
         GridLayout grid = (GridLayout) findViewById(R.id.gridLayout01);
@@ -203,6 +215,10 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         }
+
+        //runClock
+        clockRunning = true;
+        runClock();
     }
 
     //Private helper function: find index of cell text view
@@ -239,113 +255,149 @@ public class MainActivity extends AppCompatActivity {
         int i = n/COLUMN_COUNT;
         int j = n%COLUMN_COUNT;
 
-        tv.setText(bombPlacements[i][j]);
+        //if victory
+        if (victory) {
+            Intent intent = new Intent(this, Victory.class);
+            intent.putExtra("time", secondsRecorded);
+            if (lostGame) {
+                //winStatus will be false if we lose, true if we win
+                intent.putExtra("winStatus", !lostGame);
+            } else {
+                //send message to Victory activity - won the game
+                intent.putExtra("winStatus", victory);
+            }
+            startActivity(intent);
+        }
+        else {
 
-        //perform BFS if the square is empty (opens up other empty squares)
-        if (tv.getText().equals("") && mining) {
+            tv.setText(bombPlacements[i][j]);
 
-            //perform BFS (add to back, remove from front of LL)
-            LinkedList<String> queue = new LinkedList<>();
-            HashMap<String, Boolean> visited = new HashMap<>();
+            //perform BFS if the square is empty (opens up other empty squares)
+            if (tv.getText().equals("") && mining) {
 
-            //keys will be indices added together, turned into a string
-            //i.e. i = 2, j = 3 -> str(23)
+                //perform BFS (add to back, remove from front of LL)
+                LinkedList<String> queue = new LinkedList<>();
+                HashMap<String, Boolean> visited = new HashMap<>();
 
-            String index = Integer.toString(i) + Integer.toString(j);
-            queue.add(index);
-            visited.put(index, true);
+                //keys will be indices added together, turned into a string
+                //i.e. i = 2, j = 3 -> str(23)
+
+                String index = Integer.toString(i) + Integer.toString(j);
+                queue.add(index);
+                visited.put(index, true);
 
 
-            while (!queue.isEmpty()) {
+                while (!queue.isEmpty()) {
 
-                //remove that vertex from the queue (from the front of LL)
-                String currIndex = queue.pop();
+                    //remove that vertex from the queue (from the front of LL)
+                    String currIndex = queue.pop();
 
-                //handle the neighbors of currIndex
-                ArrayList<String> neighbors = getNeighbors(currIndex);
+                    //handle the neighbors of currIndex
+                    ArrayList<String> neighbors = getNeighbors(currIndex);
 
-                if (neighbors != null) {
-                    for (int k = 0; k < neighbors.size(); k++) {
-                        //if not already visited
+                    if (neighbors != null) {
+                        for (int k = 0; k < neighbors.size(); k++) {
+                            //if not already visited
 
-                        //get the key from neighbors
-                        if (!visited.containsKey(neighbors.get(k))) {
+                            //get the key from neighbors
+                            if (!visited.containsKey(neighbors.get(k))) {
 
-                            //first ensure that the cell is empty
-                            char iIdx = neighbors.get(k).charAt(0);
-                            char jIdx = neighbors.get(k).charAt(1);
+                                //first ensure that the cell is empty
+                                char iIdx = neighbors.get(k).charAt(0);
+                                char jIdx = neighbors.get(k).charAt(1);
 
-                            int iIndex = Integer.valueOf(iIdx) - '0';
-                            int jIndex = Integer.valueOf(jIdx) - '0';
+                                int iIndex = Integer.valueOf(iIdx) - '0';
+                                int jIndex = Integer.valueOf(jIdx) - '0';
 
-                            //add it to the queue and mark it as visited
-                            if (bombPlacements[iIndex][jIndex].equals("")) {
-                                queue.add(neighbors.get(k));
-                                visited.put(neighbors.get(k), true);
-                            } else{
-                                //if we encounter a number, we should add it but not visit it
-                                if (!bombPlacements[iIndex][jIndex].equals("b")) {
+                                //add it to the queue and mark it as visited
+                                if (bombPlacements[iIndex][jIndex].equals("")) {
+                                    queue.add(neighbors.get(k));
                                     visited.put(neighbors.get(k), true);
+                                } else {
+                                    //if we encounter a number, we should add it but not visit it
+                                    if (!bombPlacements[iIndex][jIndex].equals("b")) {
+                                        visited.put(neighbors.get(k), true);
+                                    }
                                 }
                             }
                         }
                     }
                 }
-            }
 
-            //Break logic
-            for (int x = 0; x < ROW_COUNT; x++) {
-                for (int y = 0; y < COLUMN_COUNT; y++) {
-                    //if i + j in keys
-                    String strIdx = String.valueOf(x) + String.valueOf(y);
-                    if (visited.containsKey(strIdx)) {
-                        //set cell background color to grey
-                        int cellIndex = (x * COLUMN_COUNT) + ((y % COLUMN_COUNT));
-                        String cStr = String.valueOf(cellIndex);
-                        visitedTracker.put(cStr, true);
-                        cells.get(cellIndex).setBackgroundColor(Color.LTGRAY);
-                        cells.get(cellIndex).setTextColor(Color.GRAY);
-                        cells.get(cellIndex).setText(bombPlacements[x][y]);
+                //Break logic
+                for (int x = 0; x < ROW_COUNT; x++) {
+                    for (int y = 0; y < COLUMN_COUNT; y++) {
+                        //if i + j in keys
+                        String strIdx = String.valueOf(x) + String.valueOf(y);
+                        if (visited.containsKey(strIdx) && !bombPlacements[x][y].equals("b")) {
+                            //set cell background color to grey
+                            int cellIndex = (x * COLUMN_COUNT) + ((y % COLUMN_COUNT));
+                            String cStr = String.valueOf(cellIndex);
+                            visitedTracker.put(cStr, true);
+                            cells.get(cellIndex).setBackgroundColor(Color.LTGRAY);
+                            cells.get(cellIndex).setTextColor(Color.GRAY);
+                            cells.get(cellIndex).setText(bombPlacements[x][y]);
+
+                        }
+                    }
+                }
+            } else {
+                //on click will either be a bomb or a number
+                tv.setBackgroundColor(Color.LTGRAY);
+                tv.setTextColor(Color.GRAY);
+                //if its a bomb, put a bomb there
+                if (bombPlacements[i][j].equals("b")) {
+                    if (!flagging) {
+                        cells.get(n).setText(R.string.mine);
+                        //player loses the game
+                        lostGame = true;
+                    }
+                } else {
+                    //its a number - decrement unopened cells
+                    if (mining) {
+                        int index = findIndexOfCellTextView(tv);
+                        visitedTracker.put(String.valueOf(index), true);
                     }
                 }
             }
-        } else {
-            //on click will either be a bomb or a number or a bomb
-            tv.setBackgroundColor(Color.LTGRAY);
-            tv.setTextColor(Color.GRAY);
-            //if its a bomb, put a bomb there
-            if (bombPlacements[i][j].equals("b")) {
-                cells.get(n).setText(R.string.mine);
-            }
-        }
 
-        //Flagging logic
-        if (flagging) {
+            //Flagging logic
+            if (flagging) {
 
-            //get current count of flags
-            String text = flagCount.getText().toString();
-            int currCount = Integer.valueOf(text);
+                //get current count of flags
+                String text = flagCount.getText().toString();
+                int currCount = Integer.valueOf(text);
 
-            //if there is not already a flag there and the tile is unrevealed:
-            if (!flagPlacements[i][j]) {
-                if (!visitedTracker.containsKey(String.valueOf(n))) {
-                    //place flag and decrease the count
-                    currCount -= 1;
+                //if there is not already a flag there and the tile is unrevealed:
+                if (!flagPlacements[i][j]) {
+                    if (!visitedTracker.containsKey(String.valueOf(n))) {
+                        //place flag and decrease the count
+                        currCount -= 1;
+                        flagCount.setText(String.valueOf(currCount));
+                        tv.setText(R.string.flag);
+                        flagPlacements[i][j] = true;
+                    }
+                } else {
+                    //remove the flag and increase the count
+                    currCount += 1;
                     flagCount.setText(String.valueOf(currCount));
-                    tv.setText(R.string.flag);
-                    flagPlacements[i][j] = true;
-                }
-            } else{
-                //remove the flag and increase the count
-                currCount += 1;
-                flagCount.setText(String.valueOf(currCount));
-                flagPlacements[i][j] = false;
+                    flagPlacements[i][j] = false;
 
-                tv.setTextColor(Color.GRAY);
-                tv.setText("");
-                tv.setBackgroundColor(Color.parseColor("lime"));
+                    tv.setTextColor(Color.GRAY);
+                    tv.setText("");
+                    tv.setBackgroundColor(Color.parseColor("lime"));
+                }
+            }
+
+            //check if the player has won the game
+            if (visitedTracker.keySet().size() >= 76 || lostGame) {
+                //reveal bombs, set victory to true
+                revealAllBombs();
+                clockRunning = false;
+                victory = true;
             }
         }
+        System.out.println(visitedTracker.keySet().size());
     }
 
     public ArrayList<String> getNeighbors(String cell) {
@@ -408,5 +460,43 @@ public class MainActivity extends AppCompatActivity {
             return null;
         } else return neighbors;
     }
+
+    public void runClock() {
+
+        TextView timeView = (TextView) findViewById(R.id.stopwatchCount);
+        Handler handler = new Handler();
+
+        handler.post(new Runnable() {
+            @Override
+            public void run() {
+                int seconds = clock % 60;
+                secondsRecorded = seconds;
+                String time = String.valueOf(seconds);
+                timeView.setText(time);
+
+                if (clockRunning) {
+                    clock++;
+                }
+                handler.postDelayed(this, 1000);
+            }
+        });
+
+    }
+
+    public void revealAllBombs() {
+        //get the indices where the bombs are located and put the bomb image there
+        for (int i = 0; i < ROW_COUNT; i++) {
+            for (int j = 0; j < COLUMN_COUNT; j++) {
+                if (bombPlacements[i][j].equals("b")) {
+                    //get index
+                    int index = (i * COLUMN_COUNT) + j;
+                    cells.get(index).setText(R.string.mine);
+                    cells.get(index).setBackgroundColor(Color.LTGRAY);
+
+                }
+            }
+        }
+    }
+
 
 }
