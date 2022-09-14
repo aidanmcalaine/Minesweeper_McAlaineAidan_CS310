@@ -20,15 +20,25 @@ public class MainActivity extends AppCompatActivity {
     //Establish row/column counts
     private static final int COLUMN_COUNT = 8;
     private static final int ROW_COUNT = 10;
+    private static final int BOMB_COUNT = 4;
 
     //Additional member variables
     boolean mining = true;
     boolean flagging = false;
+
     TextView gameMode;
+    TextView topFlagView;
+    TextView topWatchView;
+    TextView flagCount;
+    TextView watchCount;
+
+    int presentFlagCount = BOMB_COUNT;
+    HashMap<String, Boolean> visitedTracker = new HashMap<>();;
 
     //Declare arraylist of cells + boolean 2d array to keep track of bombs
     private ArrayList<TextView> cells;
     String[][] bombPlacements;
+    Boolean[][] flagPlacements;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -40,11 +50,18 @@ public class MainActivity extends AppCompatActivity {
         //Initialize cells
         cells = new ArrayList<>();
 
-        //Initialize 2D boolean array to keep track of bomb placements
+        //Initialize 2D String array to keep track of bomb placements
         bombPlacements = new String[ROW_COUNT][COLUMN_COUNT];
         for (int i = 0; i < ROW_COUNT; i++) {
             for (int j = 0; j < COLUMN_COUNT; j++) {
                 bombPlacements[i][j] = "";
+            }
+        }
+        //Initialize 2D Boolean array to keep track of flags
+        flagPlacements = new Boolean[ROW_COUNT][COLUMN_COUNT];
+        for (int i = 0; i < ROW_COUNT; i++) {
+            for (int j = 0; j < COLUMN_COUNT; j++) {
+                flagPlacements[i][j] = false;
             }
         }
 
@@ -52,6 +69,14 @@ public class MainActivity extends AppCompatActivity {
         gameMode = (TextView) findViewById(R.id.textViewBottom);
         gameMode.setOnClickListener(this::onGamemodeChange);
         gameMode.setText(R.string.pick);
+
+        //Initialize textviews at the top of the screen
+        topFlagView = (TextView) findViewById(R.id.topFlagView);
+        topFlagView.setText(R.string.flag);
+
+        flagCount = (TextView) findViewById(R.id.topFlagCount);
+        flagCount.setText(String.valueOf(BOMB_COUNT));
+
 
         //Add dynamically created cells with LayoutInflater
         GridLayout grid = (GridLayout) findViewById(R.id.gridLayout01);
@@ -85,7 +110,7 @@ public class MainActivity extends AppCompatActivity {
         //Add bomb placements to cells
         int bombCounter = 0;
         Random rand = new Random();
-        while (bombCounter < 4) {
+        while (bombCounter < BOMB_COUNT) {
 
             //generate random row value, random column value
             int rowVal = rand.nextInt(ROW_COUNT);
@@ -93,6 +118,7 @@ public class MainActivity extends AppCompatActivity {
 
             //ensure we haven't already placed a bomb there:
             if (bombPlacements[rowVal][colVal].equals("")) {
+
                 //place the bomb
                 bombPlacements[rowVal][colVal] = "b";
                 bombCounter += 1;
@@ -216,7 +242,7 @@ public class MainActivity extends AppCompatActivity {
         tv.setText(bombPlacements[i][j]);
 
         //perform BFS if the square is empty (opens up other empty squares)
-        if (tv.getText().equals("")) {
+        if (tv.getText().equals("") && mining) {
 
             //perform BFS (add to back, remove from front of LL)
             LinkedList<String> queue = new LinkedList<>();
@@ -265,11 +291,9 @@ public class MainActivity extends AppCompatActivity {
                         }
                     }
                 }
-
-                //DEBUG HERE
-                //WORK THROUGH SOME TEST CASES, MAKE SURE THE NEIGHBORS BEING RETURNED ARE
-                //ACTUALLY CORRECT. ONCE THEY ARE, WE CAN MOVE ON TO TRYING TO COLOR THEM GREY
             }
+
+            //Break logic
             for (int x = 0; x < ROW_COUNT; x++) {
                 for (int y = 0; y < COLUMN_COUNT; y++) {
                     //if i + j in keys
@@ -277,6 +301,8 @@ public class MainActivity extends AppCompatActivity {
                     if (visited.containsKey(strIdx)) {
                         //set cell background color to grey
                         int cellIndex = (x * COLUMN_COUNT) + ((y % COLUMN_COUNT));
+                        String cStr = String.valueOf(cellIndex);
+                        visitedTracker.put(cStr, true);
                         cells.get(cellIndex).setBackgroundColor(Color.LTGRAY);
                         cells.get(cellIndex).setTextColor(Color.GRAY);
                         cells.get(cellIndex).setText(bombPlacements[x][y]);
@@ -287,13 +313,39 @@ public class MainActivity extends AppCompatActivity {
             //on click will either be a bomb or a number or a bomb
             tv.setBackgroundColor(Color.LTGRAY);
             tv.setTextColor(Color.GRAY);
+            //if its a bomb, put a bomb there
+            if (bombPlacements[i][j].equals("b")) {
+                cells.get(n).setText(R.string.mine);
+            }
         }
 
-        //Added functionality
+        //Flagging logic
         if (flagging) {
-            tv.setText(R.string.flag);
-        }
 
+            //get current count of flags
+            String text = flagCount.getText().toString();
+            int currCount = Integer.valueOf(text);
+
+            //if there is not already a flag there and the tile is unrevealed:
+            if (!flagPlacements[i][j]) {
+                if (!visitedTracker.containsKey(String.valueOf(n))) {
+                    //place flag and decrease the count
+                    currCount -= 1;
+                    flagCount.setText(String.valueOf(currCount));
+                    tv.setText(R.string.flag);
+                    flagPlacements[i][j] = true;
+                }
+            } else{
+                //remove the flag and increase the count
+                currCount += 1;
+                flagCount.setText(String.valueOf(currCount));
+                flagPlacements[i][j] = false;
+
+                tv.setTextColor(Color.GRAY);
+                tv.setText("");
+                tv.setBackgroundColor(Color.parseColor("lime"));
+            }
+        }
     }
 
     public ArrayList<String> getNeighbors(String cell) {
