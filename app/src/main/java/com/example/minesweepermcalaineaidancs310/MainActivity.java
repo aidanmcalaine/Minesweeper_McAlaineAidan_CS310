@@ -15,7 +15,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Random;
-import java.util.Queue;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -39,8 +38,7 @@ public class MainActivity extends AppCompatActivity {
     TextView flagCount;
     TextView watchCount;
 
-    int presentFlagCount = BOMB_COUNT;
-    HashMap<String, Boolean> visitedTracker = new HashMap<>();;
+    HashMap<String, Boolean> visitedTracker = new HashMap<>();
 
     //Declare arraylist of cells + boolean 2d array to keep track of bombs
     private ArrayList<TextView> cells;
@@ -73,25 +71,25 @@ public class MainActivity extends AppCompatActivity {
         }
 
         //Initialize a textview at the bottom of the screen to represent the mode (mining/flagging)
-        gameMode = (TextView) findViewById(R.id.textViewBottom);
+        gameMode = findViewById(R.id.textViewBottom);
         gameMode.setOnClickListener(this::onGamemodeChange);
         gameMode.setText(R.string.pick);
 
         //Initialize textviews at the top of the screen
-        topFlagView = (TextView) findViewById(R.id.topFlagView);
+        topFlagView = findViewById(R.id.topFlagView);
         topFlagView.setText(R.string.flag);
 
-        flagCount = (TextView) findViewById(R.id.topFlagCount);
+        flagCount = findViewById(R.id.topFlagCount);
         flagCount.setText(String.valueOf(BOMB_COUNT));
 
-        topWatchView = (TextView) findViewById(R.id.stopwatchView);
+        topWatchView = findViewById(R.id.stopwatchView);
         topWatchView.setText(R.string.clock);
 
-        watchCount = (TextView) findViewById(R.id.stopwatchCount);
+        watchCount = findViewById(R.id.stopwatchCount);
         watchCount.setText("0");
 
         //Add dynamically created cells with LayoutInflater
-        GridLayout grid = (GridLayout) findViewById(R.id.gridLayout01);
+        GridLayout grid = findViewById(R.id.gridLayout01);
         LayoutInflater li = LayoutInflater.from(this);
         for (int i = 0; i < ROW_COUNT; i++) {
             for (int j = 0; j < COLUMN_COUNT; j++) {
@@ -261,7 +259,7 @@ public class MainActivity extends AppCompatActivity {
             intent.putExtra("time", secondsRecorded);
             if (lostGame) {
                 //winStatus will be false if we lose, true if we win
-                intent.putExtra("winStatus", !lostGame);
+                intent.putExtra("winStatus", false);
             } else {
                 //send message to Victory activity - won the game
                 intent.putExtra("winStatus", victory);
@@ -463,7 +461,7 @@ public class MainActivity extends AppCompatActivity {
 
     public void runClock() {
 
-        TextView timeView = (TextView) findViewById(R.id.stopwatchCount);
+        TextView timeView = findViewById(R.id.stopwatchCount);
         Handler handler = new Handler();
 
         handler.post(new Runnable() {
@@ -471,7 +469,14 @@ public class MainActivity extends AppCompatActivity {
             public void run() {
                 int seconds = clock % 60;
                 secondsRecorded = seconds;
-                String time = String.valueOf(seconds);
+
+                //added check to put a 0 before the value in some cases:
+                String time = "";
+                if (seconds / 10 <= 0) {
+                    time = "0" + String.valueOf(seconds);
+                } else {
+                    time = String.valueOf(seconds);
+                }
                 timeView.setText(time);
 
                 if (clockRunning) {
